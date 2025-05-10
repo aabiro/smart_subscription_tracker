@@ -9,65 +9,71 @@ class SupabaseService {
   final client = Supabase.instance.client;
 
   Future<List<SuggestedSubscription>> fetchSuggestions(
-    List<String> subs,
+    String userId,
+    List<String> subscriptions,
     List<String> interests,
     double budget,
     String country,
   ) async {
-    final response = await http.post(
-      Uri.parse(
-        'https://pjwaiolqaegmcgjvyxdh.functions.supabase.co/suggest_subscriptions',
-      ),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'subscriptions': subs,
-        'interests': interests,
-        'budget': budget,
-        'country': country,
-      }),
-    );
+    final supabase = Supabase.instance.client;
 
-    final text = jsonDecode(response.body)['suggestions'] as String;
+    final jwtToken = supabase.auth.currentSession?.accessToken;
 
-    final suggestions = <SuggestedSubscription>[];
-
-    final lines = text.split('\n').where((line) => line.trim().isNotEmpty);
-
-    for (final line in lines) {
-      final parts = RegExp(
-        r'^(?:\d+\.\s*)?(.*?)[–\-](.*?)(\$\d+)?$',
-      ).firstMatch(line);
-      if (parts != null) {
-        final name = parts.group(1)?.trim() ?? '';
-        final desc = parts.group(2)?.trim() ?? '';
-        final price =
-            double.tryParse(
-              parts.group(3)?.replaceAll(RegExp(r'[^\d.]'), '') ?? '0',
-            ) ??
-            0;
-        suggestions.add(
-          SuggestedSubscription(
-            id: '', // Provide a default or appropriate value for id
-            name: name,
-            description: desc,
-            price: price,
-            billingCycle: 'Monthly', 
-            createdAt: DateTime.timestamp(),
-          ),
-        );
-      }
+    if (jwtToken == null) {
+      throw Exception("User is not authenticated. Missing JWT token.");
     }
 
-    return suggestions;
+    final url = Uri.parse('https://pjwaiolqaegmcgjvyxdh.supabase.co/functions/v1/ai-suggestions');
+    final body = {
+      'user_id': userId,
+      'subscriptions': subscriptions,
+      'interests': interests,
+      'budget': budget,
+      'country': country,
+    };
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $jwtToken',
+    };
+
+    print("SupabaseService: Making POST request to $url");
+    print("SupabaseService: Request Headers: $headers");
+    print("SupabaseService: Request Body: ${jsonEncode(body)}");
+
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode(body),
+    );
+
+    print("SupabaseService: Response Status Code: ${response.statusCode}");
+    print("SupabaseService: Response Body: ${response.body}");
+
+    if (response.statusCode == 429) {
+      throw Exception(
+        "Quota exceeded. Please check your OpenAI plan and billing details.",
+      );
+    }
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Failed to fetch data: ${response.statusCode} - ${response.body}',
+      );
+    }
+
+    final data = jsonDecode(response.body) as List<dynamic>;
+    return data.map((json) => SuggestedSubscription.fromJson(json)).toList();
   }
 
   Future<List<Subscription>> fetchSubscriptions() async {
-    final response = await Supabase.instance.client
-        .from('subscriptions')
-        .select();
+    final response =
+        await Supabase.instance.client.from('subscriptions').select();
 
     if (response == null || response is! List) {
-      throw Exception("Failed to fetch subscriptions: Unexpected response format");
+      throw Exception(
+        "Failed to fetch subscriptions: Unexpected response format",
+      );
     }
 
     return response
@@ -116,8 +122,8 @@ class SupabaseService {
             name: data['name'],
             description: data['description'],
             price: data['price'].toDouble(),
-            billingCycle: data['billing_cycle'], 
-            createdAt: data['created_at']
+            billingCycle: data['billing_cycle'],
+            createdAt: data['created_at'],
           ),
         )
         .toList();
@@ -152,5 +158,4 @@ class SupabaseService {
       throw Exception("An unexpected error occurred: $error");
     }
   }
-
 }

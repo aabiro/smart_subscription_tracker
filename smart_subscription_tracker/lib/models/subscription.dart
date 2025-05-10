@@ -4,29 +4,37 @@ class Subscription {
   final double price;
   final String billingCycle;
   final DateTime nextPaymentDate;
-  final bool isShared; // Added the missing field
-
+  final bool isShared; 
   Subscription({
     required this.id,
     required this.name,
     required this.price,
     required this.billingCycle,
     required this.nextPaymentDate,
-    required this.isShared, // Added the field to the constructor
+    required this.isShared, 
   });
 
-   // Add your existing fields here
+  @override
+  String toString() {
+    return 'Subscription(id: $id, name: $name, price: $price, billingCycle: $billingCycle, nextPaymentDate: $nextPaymentDate, isShared: $isShared)';
+  }
+
 
   // Factory constructor to create a Subscription from JSON
   factory Subscription.fromJson(Map<String, dynamic> json) {
     return Subscription(
-      // Replace these fields with the actual fields in your Subscription class
-      id: json['id'] as String,
-      name: json['name'] as String,
-      price: (json['price'] as num).toDouble(),
-      billingCycle: json['billing_cycle'] as String,
-      nextPaymentDate: DateTime.parse(json['next_payment_date'] as String),
-      isShared: json['is_shared'] as bool,
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unnamed Subscription',
+      price:
+          (json['price'] is num)
+              ? (json['price'] as num).toDouble()
+              : double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
+      billingCycle: json['billing_cycle']?.toString() ?? 'Monthly',
+      nextPaymentDate:
+          DateTime.tryParse(json['next_payment_date']?.toString() ?? '') ??
+          DateTime.now().add(Duration(days: 30)),
+      isShared: json['is_shared'] == true,
     );
   }
+
 }

@@ -3,7 +3,7 @@
 class SuggestedSubscription {
   final String id; // UUID from Supabase
   final String name;
-  final String description;
+  final String? description; // Nullable
   final double price; // Dart double, Supabase NUMERIC
   final String billingCycle; // 'Monthly' or 'Yearly'
   final DateTime createdAt; // Supabase TIMESTAMPTZ
@@ -11,7 +11,7 @@ class SuggestedSubscription {
   SuggestedSubscription({
     required this.id,
     required this.name,
-    required this.description,
+    this.description, // Nullable
     required this.price,
     required this.billingCycle,
     required this.createdAt,
@@ -31,12 +31,8 @@ class SuggestedSubscription {
     return SuggestedSubscription(
       id: json['id'] as String,
       name: json['name'] as String,
-      description:
-          json['description'] as String? ??
-          '', // Handle potentially null description
-      price:
-          (json['price'] as num)
-              .toDouble(), // Cast NUMERIC/FLOAT from DB to double
+      description: json['description'] as String?, // Handle nullable field
+      price: (json['price'] as num).toDouble(), // Cast NUMERIC/FLOAT from DB to double
       billingCycle: json['billing_cycle'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
     );

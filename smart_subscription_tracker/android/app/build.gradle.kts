@@ -1,3 +1,5 @@
+// android/app/build.gradle.kts
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -30,15 +32,42 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+    signingConfigs {
+        create("release") {
+            // Configure your release signing key here
+            // IMPORTANT: For security, avoid hardcoding passwords in version control.
+            // Consider using gradle.properties (added to .gitignore) or environment variables.
+            storeFile = file("smart-sub-release-key.keystore") // Ensure this file is in android/app/ or provide the correct path
+            storePassword = "O2tr341989*"
+            keyAlias = "alias"
+            keyPassword = "O2tr341989*"
         }
+    }
+
+    buildTypes {
+        getByName("release") { // Use getByName to configure an existing build type
+            // Correct Kotlin DSL syntax:
+            signingConfig = signingConfigs.getByName("release") // Assign using '=' and get by name
+            isMinifyEnabled = true    // Use 'isMinifyEnabled ='
+            isShrinkResources = true  // Use 'isShrinkResources ='
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro" // Ensure this file exists in android/app/
+            )
+        }
+        // Example for debug, often inherits defaults or can be customized
+        // getByName("debug") {
+        //     applicationIdSuffix = ".debug"
+        //     isMinifyEnabled = false
+        // }
     }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Add your app-specific Android dependencies here
+    // implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version") // Example
 }

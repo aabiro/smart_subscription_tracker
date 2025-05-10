@@ -8,37 +8,75 @@ import 'screens/import_subscriptions_screen.dart';
 import 'screens/user_preferences_screen.dart';
 import 'screens/ai_suggestions_screen.dart';
 import 'screens/account_screen.dart';
+import 'notifiers/shared_refresh_notifier.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/auth_screen.dart' as local_auth;
 import 'utils/constants.dart' as constants;
 import 'package:flutter/foundation.dart';
+import 'dart:async';
+import 'package:provider/provider.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    print("FlutterError: ${details.exceptionAsString()}");
+    print("Stack trace: ${details.stack}");
+  };
 
-  print("Attempting to initialize Supabase with:");
-  print("URL: '${constants.supabaseUrl}'");
-  print(
-    "Anon Key: '${constants.anonKey}'",
-  ); // Good to check this isn't empty/null too
+  runZonedGuarded(() {
+     runApp(
+        ChangeNotifierProvider(
+          create: (_) => RefreshNotifier(),
+          child: MyApp(),
+        ),
+      );
 
-  try {
-    await Supabase.initialize(
-      url: constants.supabaseUrl,
-      anonKey: constants.anonKey,
+  }, (error, stackTrace) {
+    print("Uncaught error: $error");
+    print("Stack trace: $stackTrace");
+  });
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: initializeApp(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator();
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else {
+          return SubscriptionTrackerApp(preferencesCompleted: snapshot.data as bool);
+        }
+      },
     );
-    print("Supabase.initialize call completed successfully.");
-  } catch (e) {
-    print("Error during Supabase.initialize: $e");
-    // If host lookup fails here, this catch block should grab it.
   }
 
-  final prefs = await SharedPreferences.getInstance();
-  final preferencesCompleted = prefs.getBool('preferencesCompleted') ?? false;
+  Future<bool> initializeApp() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(
-    SubscriptionTrackerApp(preferencesCompleted: preferencesCompleted),
-  ); // Make sure SubscriptionTrackerApp is defined
+    print("Attempting to initialize Supabase with:");
+    print("URL: '${constants.supabaseUrl}'");
+    print(
+      "Anon Key: '${constants.anonKey}'",
+    ); // Good to check this isn't empty/null too
+
+    try {
+      await Supabase.initialize(
+        url: constants.supabaseUrl,
+        anonKey: constants.anonKey,
+      );
+      print("Supabase.initialize call completed successfully.");
+    } catch (e) {
+      print("Error during Supabase.initialize: $e");
+      // If host lookup fails here, this catch block should grab it.
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('preferencesCompleted') ?? false;
+  }
 }
 
 class SubscriptionTrackerApp extends StatelessWidget {

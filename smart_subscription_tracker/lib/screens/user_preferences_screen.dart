@@ -76,6 +76,7 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
         _isLoading = false;
       });
     }
+    _savePreferences();
   }
 
   @override
@@ -120,7 +121,7 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _savePreferences,
+              onPressed: _loadPreferences,
               child: Text("Save Preferences"),
             ),
           ],

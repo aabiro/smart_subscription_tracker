@@ -3,6 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart'; // kDebugMode
 import 'package:smart_subscription_tracker/utils/api_helper.dart'; // Assuming this path is correct
+import 'package:provider/provider.dart';
+import '../notifiers/shared_refresh_notifier.dart';
+
+void _onSuggestionComplete(BuildContext context) {
+  final notifier = Provider.of<RefreshNotifier>(context, listen: false);
+  notifier.triggerRefresh();
+
+  // Optional: Switch tab if needed
+  // bottomNavController.jumpToTab(0);
+}
 
 // Assuming you might have a SuggestedSubscription model,
 // but for this example, we'll work directly with Map<String, dynamic>
@@ -157,6 +167,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         );
         // Consider if this case should be an error or if no data returned is fine for insert.
       } else {
+        _onSuggestionComplete(screenContext);
         print("Supabase insert successful. Response data: $responseList");
       }
 
@@ -261,7 +272,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                               // This button is a bit out of place if suggestions fail.
                               // Consider a "Retry" button or specific debug actions.
                               // For now, it navigates to home.
-                              Navigator.pushReplacementNamed(context, '/home');
+                              Navigator.pushReplacementNamed(context, '/dashboard');
                             },
                             child: Text("Go Home (Debug)"),
                           ),
@@ -345,21 +356,10 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
             ),
             TextButton(
               onPressed: () {
-                // This pop assumes SuggestionsScreen was pushed.
-                // If it's a tab, this might not be the desired behavior.
-                // For now, keeping it as it might be used in a context where it's pushed.
-                if (Navigator.canPop(context)) {
-                  Navigator.pop(context);
-                } else {
-                  // If it can't pop (e.g., it's a root screen of a tab),
-                  // navigate to home or another default screen.
-                  Navigator.pushReplacementNamed(context, '/home');
-                }
+                Navigator.pushReplacementNamed(context, '/home'); // Navigate to the dashboard
+                print("Navigated to the dashboard.");
               },
-              child: Text(
-                "Done / Skip", // Changed text for clarity
-                style: TextStyle(fontSize: 16, color: Colors.blue),
-              ),
+              child: Text("Done / Skip"),
             ),
           ],
         ),

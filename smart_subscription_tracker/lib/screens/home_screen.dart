@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:smart_subscription_tracker/screens/add_edit_subscription_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/subscription.dart';
-import '../services/supabase_service.dart';
 import 'dashboard_screen.dart';
-
 import 'import_subscriptions_screen.dart';
 import 'ai_suggestions_screen.dart';
 import 'account_screen.dart';

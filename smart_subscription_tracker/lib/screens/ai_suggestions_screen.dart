@@ -126,13 +126,13 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                     final s = suggestions[index];
                     return ListTile(
                       title: Text(s.name),
-                      subtitle: Text(s.description),
+                      subtitle: Text(s.description ?? 'No description available'), // Fallback for null
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text('\$${s.price.toStringAsFixed(2)}'),
                           IconButton(
-                            icon: Icon(Icons.add, color: Colors.green), // Add a + icon
+                            icon: Icon(Icons.add, color: Colors.green),
                             onPressed: () async {
                               try {
                                 await addSuggestedSubToSupabase(s);
@@ -157,6 +157,41 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          onPressed: () async {
+            try {
+              final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+              if (userId.isEmpty) {
+                throw Exception("User ID is missing. Please log in again.");
+              }
+
+              final newSuggestions = await SupabaseService().fetchSuggestions(
+                userId,
+                ['Netflix'], // Example subscriptions
+                ['Fitness', 'Lifestyle'], // Example interests
+                50.0, // Example budget
+                'CA', // Example country
+              );
+
+              setState(() {
+                _futureSuggestions = Future.value(newSuggestions);
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("AI Suggestions updated!")),
+              );
+            } catch (e) {
+              print("AISuggestionsScreen: Error fetching suggestions: $e");
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Failed to fetch suggestions: $e")),
+              );
+            }
+          },
+          child: Text('Get AI Suggestions'),
+        ),
       ),
     );
   }
