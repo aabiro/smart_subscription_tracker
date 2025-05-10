@@ -16,14 +16,15 @@ class SupabaseService {
     String country,
   ) async {
     final supabase = Supabase.instance.client;
-
     final jwtToken = supabase.auth.currentSession?.accessToken;
 
     if (jwtToken == null) {
       throw Exception("User is not authenticated. Missing JWT token.");
     }
 
-    final url = Uri.parse('https://pjwaiolqaegmcgjvyxdh.supabase.co/functions/v1/ai-suggestions');
+    final url = Uri.parse(
+      'https://pjwaiolqaegmcgjvyxdh.supabase.co/functions/v1/ai-suggestions',
+    );
     final body = {
       'user_id': userId,
       'subscriptions': subscriptions,
@@ -58,12 +59,24 @@ class SupabaseService {
 
     if (response.statusCode != 200) {
       throw Exception(
-        'Failed to fetch data: ${response.statusCode} - ${response.body}',
+        "Failed to fetch data: ${response.statusCode} - ${response.body}",
       );
     }
 
-    final data = jsonDecode(response.body) as List<dynamic>;
-    return data.map((json) => SuggestedSubscription.fromJson(json)).toList();
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is! Map || decoded['suggestions'] is! List) {
+      throw Exception("Unexpected response format: $decoded");
+    }
+
+    final data = decoded['suggestions'] as List<dynamic>;
+
+    return data
+        .map(
+          (json) =>
+              SuggestedSubscription.fromJson(json as Map<String, dynamic>),
+        )
+        .toList();
   }
 
   Future<List<Subscription>> fetchSubscriptions() async {
@@ -118,12 +131,10 @@ class SupabaseService {
     return (response as List)
         .map(
           (data) => SuggestedSubscription(
-            id: data['id'],
             name: data['name'],
             description: data['description'],
             price: data['price'].toDouble(),
             billingCycle: data['billing_cycle'],
-            createdAt: data['created_at'],
           ),
         )
         .toList();

@@ -4,6 +4,7 @@ import '../models/suggested_subscription.dart';
 import '../models/subscription.dart';
 import '../services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert'; // Add this import for jsonDecode
 
 class AISuggestionsScreen extends StatefulWidget {
   @override
@@ -34,6 +35,38 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
 
     if (response.error != null) {
       throw Exception('Failed to add: ${response.error!.message}');
+    }
+  }
+
+  Future<List<SuggestedSubscription>> fetchSuggestions() async {
+   try {
+      // Assuming you're calling the Supabase function here
+      final res = await supabase.functions.invoke(
+        'ai-suggestions',
+        body: {
+          'user_id': 'abc123',
+          'subscriptions': ['Netflix'],
+          'interests': ['fitness', 'mindfulness'],
+          'budget': 20,
+          'country': 'US',
+        },
+      );
+
+      // Check the response status code
+      if (res.status == 200) {
+        // Directly access `res.data` which should already be a List<Map<String, dynamic>>
+        final List<dynamic> data =
+            res.data; // No need to decode here if it's already parsed
+
+        // Map it to your model
+        return data
+            .map((item) => SuggestedSubscription.fromJson(item))
+            .toList();
+      } else {
+        throw Exception('Failed to fetch suggestions');
+      }
+    } catch (e) {
+      throw Exception('Error fetching suggestions: $e');
     }
   }
 
@@ -163,18 +196,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
         child: ElevatedButton(
           onPressed: () async {
             try {
-              final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-              if (userId.isEmpty) {
-                throw Exception("User ID is missing. Please log in again.");
-              }
-
-              final newSuggestions = await SupabaseService().fetchSuggestions(
-                userId,
-                ['Netflix'], // Example subscriptions
-                ['Fitness', 'Lifestyle'], // Example interests
-                50.0, // Example budget
-                'CA', // Example country
-              );
+              final newSuggestions = await fetchSuggestions();
 
               setState(() {
                 _futureSuggestions = Future.value(newSuggestions);
