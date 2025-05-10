@@ -31,30 +31,34 @@ android {
 
     signingConfigs {
         create("release") {
-            // IMPORTANT: The keystore file specified below MUST exist.
-            // 1. VERIFY THE FILE 'smart-sub-release-key.keystore' IS LOCATED IN THE 'android/app/' DIRECTORY.
-            // 2. IF IT'S MISSING, YOU NEED TO GENERATE IT.
-            //    - In Android Studio: Build > Generate Signed Bundle / APK... > Create new...
-            //    - Or use the 'keytool' command-line utility.
-            // 3. IF IT EXISTS BUT IN A DIFFERENT LOCATION (e.g., 'android/' folder),
-            //    UPDATE THE PATH in storeFile. For example, if in 'android/': file("../smart-sub-release-key.keystore")
-            // 4. Ensure the storePassword, keyAlias, and keyPassword match EXACTLY
-            //    what was used when creating/defining the keystore.
-            
+            // Read signing configuration from gradle.properties
+            // Ensure MYAPP_RELEASE_STORE_FILE, MYAPP_RELEASE_STORE_PASSWORD,
+            // MYAPP_RELEASE_KEY_ALIAS, and MYAPP_RELEASE_KEY_PASSWORD are defined
+            // in your android/gradle.properties file.
 
-            val storeFilePath = project.findProperty("MYAPP_RELEASE_STORE_FILE") as String? ?: "smart-sub-release-key.keystore"
-            val resolvedStoreFile = file(storeFilePath)
+            val storeFileProperty = project.findProperty("MYAPP_RELEASE_STORE_FILE") as String?
+            val storePasswordProperty = project.findProperty("MYAPP_RELEASE_STORE_PASSWORD") as String?
+            val keyAliasProperty = project.findProperty("MYAPP_RELEASE_KEY_ALIAS") as String?
+            val keyPasswordProperty = project.findProperty("MYAPP_RELEASE_KEY_PASSWORD") as String?
 
-            if (resolvedStoreFile.exists()) {
-                storeFile = resolvedStoreFile
-                storePassword = project.findProperty("MYAPP_RELEASE_STORE_PASSWORD") as String? ?: "O2tr341989*" // Example, replace with property
-                keyAlias = project.findProperty("MYAPP_RELEASE_KEY_ALIAS") as String? ?: "alias" // Example, replace with property
-                keyPassword = project.findProperty("MYAPP_RELEASE_KEY_PASSWORD") as String? ?: "O2tr341989*" // Example, replace with property
+            if (storeFileProperty != null && storePasswordProperty != null && keyAliasProperty != null && keyPasswordProperty != null) {
+                val resolvedStoreFile = file(storeFileProperty) // Resolves relative to android/app/
+                if (resolvedStoreFile.exists()) {
+                    storeFile = resolvedStoreFile
+                    storePassword = storePasswordProperty
+                    keyAlias = keyAliasProperty
+                    keyPassword = keyPasswordProperty
+                    println("Release signing config loaded from gradle.properties using keystore: $storeFileProperty")
+                } else {
+                    println("Warning: Keystore file '$storeFileProperty' specified in gradle.properties not found at ${resolvedStoreFile.absolutePath}. Release build will likely fail signing.")
+                    // You might want to throw an error here if the file is mandatory for release builds
+                    // throw new org.gradle.api.InvalidUserDataException("Keystore file '$storeFileProperty' not found at ${resolvedStoreFile.absolutePath}")
+                }
             } else {
-                println("Warning: Keystore file not found at $storeFilePath. Release build may fail signing.")
-                // Optionally, you can make the build fail here if the keystore is mandatory for your setup
-                // throw new InvalidUserDataException("Keystore file '$storeFilePath' not found.")
-                // Or, allow it to proceed and fail at validateSigningRelease if not configured for debug signing
+                println("Warning: Release signing information not found in gradle.properties. Release build will not be signed properly.")
+                // This configuration will likely cause the :validateSigningRelease task to fail
+                // or result in an unsigned/debug-signed release artifact if not handled.
+                // For a real release, these properties MUST be set.
             }
         }
     }
