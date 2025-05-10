@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "@types/deno": "^2.3.0"
+  },
+  "dependencies": {
+    "@openai/openai": "npm:@jsr/openai__openai@^4.98.0",
+    "@supabase/supabase-js": "^2.49.4",
+    "openai": "^4.98.0"
+  }
+}
