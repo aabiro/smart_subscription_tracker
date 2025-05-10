@@ -22,10 +22,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.smart_subscription_tracker"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -34,32 +31,44 @@ android {
 
     signingConfigs {
         create("release") {
-            // Configure your release signing key here
-            // IMPORTANT: For security, avoid hardcoding passwords in version control.
-            // Consider using gradle.properties (added to .gitignore) or environment variables.
-            storeFile = file("smart-sub-release-key.keystore") // Ensure this file is in android/app/ or provide the correct path
-            storePassword = "O2tr341989*"
-            keyAlias = "alias"
-            keyPassword = "O2tr341989*"
+            // IMPORTANT: The keystore file specified below MUST exist.
+            // 1. VERIFY THE FILE 'smart-sub-release-key.keystore' IS LOCATED IN THE 'android/app/' DIRECTORY.
+            // 2. IF IT'S MISSING, YOU NEED TO GENERATE IT.
+            //    - In Android Studio: Build > Generate Signed Bundle / APK... > Create new...
+            //    - Or use the 'keytool' command-line utility.
+            // 3. IF IT EXISTS BUT IN A DIFFERENT LOCATION (e.g., 'android/' folder),
+            //    UPDATE THE PATH in storeFile. For example, if in 'android/': file("../smart-sub-release-key.keystore")
+            // 4. Ensure the storePassword, keyAlias, and keyPassword match EXACTLY
+            //    what was used when creating/defining the keystore.
+            
+
+            val storeFilePath = project.findProperty("MYAPP_RELEASE_STORE_FILE") as String? ?: "smart-sub-release-key.keystore"
+            val resolvedStoreFile = file(storeFilePath)
+
+            if (resolvedStoreFile.exists()) {
+                storeFile = resolvedStoreFile
+                storePassword = project.findProperty("MYAPP_RELEASE_STORE_PASSWORD") as String? ?: "O2tr341989*" // Example, replace with property
+                keyAlias = project.findProperty("MYAPP_RELEASE_KEY_ALIAS") as String? ?: "alias" // Example, replace with property
+                keyPassword = project.findProperty("MYAPP_RELEASE_KEY_PASSWORD") as String? ?: "O2tr341989*" // Example, replace with property
+            } else {
+                println("Warning: Keystore file not found at $storeFilePath. Release build may fail signing.")
+                // Optionally, you can make the build fail here if the keystore is mandatory for your setup
+                // throw new InvalidUserDataException("Keystore file '$storeFilePath' not found.")
+                // Or, allow it to proceed and fail at validateSigningRelease if not configured for debug signing
+            }
         }
     }
 
     buildTypes {
-        getByName("release") { // Use getByName to configure an existing build type
-            // Correct Kotlin DSL syntax:
-            signingConfig = signingConfigs.getByName("release") // Assign using '=' and get by name
-            isMinifyEnabled = true    // Use 'isMinifyEnabled ='
-            isShrinkResources = true  // Use 'isShrinkResources ='
+        getByName("release") { 
+            signingConfig = signingConfigs.getByName("release") 
+            isMinifyEnabled = true    
+            isShrinkResources = true  
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro" // Ensure this file exists in android/app/
             )
         }
-        // Example for debug, often inherits defaults or can be customized
-        // getByName("debug") {
-        //     applicationIdSuffix = ".debug"
-        //     isMinifyEnabled = false
-        // }
     }
 }
 
@@ -69,5 +78,4 @@ flutter {
 
 dependencies {
     // Add your app-specific Android dependencies here
-    // implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version") // Example
 }
