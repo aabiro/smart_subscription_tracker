@@ -30,7 +30,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // Listen for external refresh trigger
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final refreshNotifier = Provider.of<RefreshNotifier>(context, listen: false);
+      final refreshNotifier = Provider.of<RefreshNotifier>(
+        context,
+        listen: false,
+      );
       refreshNotifier.addListener(_handleRefreshTrigger);
     });
   }
@@ -38,7 +41,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     print("DashboardScreen: dispose called (Instance: ${hashCode})");
-    final refreshNotifier = Provider.of<RefreshNotifier>(context, listen: false);
+    final refreshNotifier = Provider.of<RefreshNotifier>(
+      context,
+      listen: false,
+    );
     refreshNotifier.removeListener(_handleRefreshTrigger);
     _scrollController.dispose();
     super.dispose();
@@ -92,20 +98,21 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _deleteSubscription(String id, String name) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Delete Subscription'),
-        content: Text('Are you sure you want to delete "$name"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel'),
+      builder:
+          (ctx) => AlertDialog(
+            title: Text('Delete Subscription'),
+            content: Text('Are you sure you want to delete "$name"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (shouldDelete != true) return;

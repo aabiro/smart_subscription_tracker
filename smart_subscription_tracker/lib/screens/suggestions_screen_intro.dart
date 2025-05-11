@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart'; // kDebugMode
 import 'package:smart_subscription_tracker/utils/api_helper.dart'; // Assuming this path is correct
 import 'package:provider/provider.dart';
 import '../notifiers/shared_refresh_notifier.dart';
+import '../utils/constants.dart' as constants;
 
 void _onSuggestionComplete(BuildContext context) {
   final notifier = Provider.of<RefreshNotifier>(context, listen: false);
@@ -19,18 +20,18 @@ void _onSuggestionComplete(BuildContext context) {
 // from ApiHelper for simplicity in the popup.
 // If you have a model, it's better to parse into it.
 
-class SuggestionsScreen extends StatefulWidget {
+class SuggestionsScreenIntro extends StatefulWidget {
   // Changed to StatefulWidget
   final VoidCallback onSubscriptionAdded;
 
-  SuggestionsScreen({required this.onSubscriptionAdded, Key? key})
+  SuggestionsScreenIntro({required this.onSubscriptionAdded, Key? key})
     : super(key: key);
 
   @override
-  _SuggestionsScreenState createState() => _SuggestionsScreenState();
+  _SuggestionsScreenIntroState createState() => _SuggestionsScreenIntroState();
 }
 
-class _SuggestionsScreenState extends State<SuggestionsScreen> {
+class _SuggestionsScreenIntroState extends State<SuggestionsScreenIntro> {
   // Method to show suggestion details in a dialog
   void _showSuggestionDetails(
     BuildContext context,
@@ -179,9 +180,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
       widget.onSubscriptionAdded(); // Call the callback
 
-      // Pop the SuggestionsScreen itself after adding
+      // Pop the SuggestionsScreenIntro itself after adding
       // Or, if you want to stay on this screen, remove this pop.
-      // This pop assumes SuggestionsScreen was pushed onto the stack.
+      // This pop assumes SuggestionsScreenIntro was pushed onto the stack.
       // If it's a tab in HomeScreen, you might not want to pop.
       // Based on your previous context, this screen might be a tab.
       // Let's assume for now we stay on the screen or the parent handles navigation.
@@ -272,7 +273,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                               // This button is a bit out of place if suggestions fail.
                               // Consider a "Retry" button or specific debug actions.
                               // For now, it navigates to home.
-                              Navigator.pushReplacementNamed(context, '/dashboard');
+                              Navigator.pushReplacementNamed(context, '/home');
                             },
                             child: Text("Go Home (Debug)"),
                           ),
@@ -356,13 +357,84 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.pushReplacementNamed(context, '/home'); // Navigate to the dashboard
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/home',
+                ); // Navigate to the dashboard
                 print("Navigated to the dashboard.");
               },
               child: Text("Done / Skip"),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class SuggestionsScreen extends StatefulWidget {
+  @override
+  _SuggestionsScreenState createState() => _SuggestionsScreenState();
+}
+
+class _SuggestionsScreenState extends State<SuggestionsScreen> {
+  late Future<List<dynamic>> _futureSuggestions;
+
+  @override
+  void initState() {
+    super.initState();
+    _futureSuggestions = ApiHelper.fetchData(
+      url: 'https://pjwaiolqaegmcgjvyxdh.functions.supabase.co/ai-suggestions',
+      headers: {
+        'Authorization':
+            'Bearer ${Supabase.instance.client.auth.currentSession?.accessToken}',
+        'apikey':
+            '${constants.anonKey}', // Replace with your actual Supabase anon key
+        'Content-Type': 'application/json',
+      },
+      body: {
+        'user_id': Supabase.instance.client.auth.currentUser!.id,
+        'subscriptions': [], // Add actual subscriptions if available
+        'interests':
+            [], // Replace with actual interests or initialize _selectedInterests
+        'budget':
+            0.0, // Replace with actual budget or initialize _budgetController
+        'country': 'US', // Replace with actual country or initialize _country
+      },
+    ).then((response) {
+      // Assuming the response is a Map<String, dynamic> with a 'suggestions' key
+      return List<Map<String, dynamic>>.from(response['suggestions'] ?? []);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("AI Suggestions")),
+      body: FutureBuilder<List<dynamic>>(
+        future: _futureSuggestions,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text("No suggestions available."));
+          }
+
+          final suggestions = snapshot.data!;
+          return ListView.builder(
+            itemCount: suggestions.length,
+            itemBuilder: (context, index) {
+              final suggestion = suggestions[index];
+              return ListTile(
+                title: Text(suggestion['name']),
+                subtitle: Text(suggestion['description']),
+                trailing: Text("\$${suggestion['price']}"),
+              );
+            },
+          );
+        },
       ),
     );
   }

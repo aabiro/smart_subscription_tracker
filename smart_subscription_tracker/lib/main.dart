@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/suggestions_screen.dart';
+import 'screens/suggestions_screen_intro.dart';
 import 'screens/home_screen.dart';
 import 'screens/add_edit_subscription_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -89,7 +89,29 @@ class SubscriptionTrackerApp extends StatelessWidget {
     final session = Supabase.instance.client.auth.currentSession;
 
     return MaterialApp(
-      theme: ThemeData(primarySwatch: Colors.indigo),
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.grey[100],
+        textTheme: TextTheme(
+          titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          bodyMedium: TextStyle(fontSize: 16),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+            textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: Colors.grey[200]!,
+          selectedColor: Colors.blue[100],
+          labelStyle: TextStyle(fontSize: 14),
+        ),
+      ),
       debugShowCheckedModeBanner: false,
       home: // Show UserPreferencesScreen in debug mode
           (session == null
@@ -107,7 +129,7 @@ class SubscriptionTrackerApp extends StatelessWidget {
         '/account': (context) => AccountScreen(),
         '/preferences': (context) => UserPreferencesScreen(),
         '/ai-suggestions': (context) => AISuggestionsScreen(),
-        '/suggestions': (context) => SuggestionsScreen(
+        '/suggestions': (context) => SuggestionsScreenIntro(
           onSubscriptionAdded: () {
             // Handle the subscription added logic here
             // For example, you can navigate to the home screen or show a message

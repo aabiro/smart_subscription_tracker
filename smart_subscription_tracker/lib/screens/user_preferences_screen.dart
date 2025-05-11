@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/constants.dart' as constants;
 import 'package:smart_subscription_tracker/utils/api_helper.dart';
 
 class UserPreferencesScreen extends StatefulWidget {
@@ -25,6 +26,17 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
   String? _errorMessage;
 
   Future<void> _savePreferences() async {
+    if (_selectedInterests.isEmpty) {
+      // Show an error message if no interests are selected
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Please select at least one interest."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final budget = double.tryParse(_budgetController.text) ?? 0;
 
     await supabase.from('user_profiles').upsert({
@@ -44,85 +56,155 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
     }
 
     // Navigate to the main app screen
-    Navigator.pushReplacementNamed(context, '/suggestions');
+    if (mounted) {
+      _loadPreferences();
+      Navigator.pushReplacementNamed(context, '/suggestions');
+    }
   }
 
   Future<void> _loadPreferences() async {
+    if (!mounted) return; // Ensure the widget is still in the tree
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final data = await ApiHelper.fetchData(
-        url: 'https://pjwaiolqaegmcgjvyxdh.supabase.co/rest/v1/user_preferences',
-        headers: {'Authorization': 'Bearer YOUR_API_KEY'},
-        mockData: {
-          'interests': ['Technology', 'Fitness'],
-          'budget': 50.0,
-          'country': 'USA',
+      final responseData = await ApiHelper.fetchDataList(
+        url:
+            'https://pjwaiolqaegmcgjvyxdh.supabase.co/rest/v1/user_profiles?id=eq.${supabase.auth.currentUser!.id}&select=*',
+        headers: {
+          'Authorization':
+              'Bearer ${supabase.auth.currentSession?.accessToken}',
+          'apikey': constants.anonKey,
+          'Content-Type': 'application/json',
         },
       );
 
-      setState(() {
-        _selectedInterests = List<String>.from(data['interests']);
-        _budgetController.text = data['budget'].toString();
-        _country = data['country'];
-        _isLoading = false;
-      });
+      if (responseData.isNotEmpty) {
+        final data = responseData[0] as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _selectedInterests = List<String>.from(data['interests']);
+            _budgetController.text = data['budget'].toString();
+            _country = data['country'];
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _errorMessage = "No preferences found.";
+            _isLoading = false;
+          });
+        }
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = "Error: ${e.toString()}";
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Error loading preferences: ${e.toString()}";
+          _isLoading = false;
+        });
+      }
     }
-    _savePreferences();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Your Preferences")),
-      body: Padding(
+      appBar: AppBar(title: Text("Your Preferences"), centerTitle: true),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               "Select Your Interests",
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
+            SizedBox(height: 10),
             Wrap(
               spacing: 10,
-              children: _availableInterests.map((interest) {
-                final selected = _selectedInterests.contains(interest);
-                return FilterChip(
-                  label: Text(interest),
-                  selected: selected,
-                  onSelected: (val) {
-                    setState(() {
-                      if (val)
-                        _selectedInterests.add(interest);
-                      else
-                        _selectedInterests.remove(interest);
-                    });
-                  },
-                );
-              }).toList(),
+              runSpacing: 10,
+              children:
+                  _availableInterests.map((interest) {
+                    final selected = _selectedInterests.contains(interest);
+                    return AnimatedContainer(
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      child: FilterChip(
+                        label: Text(
+                          interest,
+                          style: TextStyle(
+                            color: selected ? Colors.white : Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        selected: selected,
+                        onSelected: (val) {
+                          setState(() {
+                            if (val) {
+                              _selectedInterests.add(interest);
+                            } else {
+                              _selectedInterests.remove(interest);
+                            }
+                          });
+                        },
+                        selectedColor:
+                            Colors.blue, // Background color when selected
+                        backgroundColor:
+                            Colors
+                                .grey[300], // Background color when not selected
+                        checkmarkColor: Colors.white, // Checkmark color
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                    );
+                  }).toList(),
             ),
+            SizedBox(height: 20),
+            Text(
+              "Set Your Monthly Budget",
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            SizedBox(height: 10),
             TextField(
               controller: _budgetController,
               decoration: InputDecoration(labelText: 'Monthly Budget (\$)'),
               keyboardType: TextInputType.number,
             ),
+            SizedBox(height: 20),
+            Text(
+              "Set Your Country",
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            SizedBox(height: 10),
             TextField(
               decoration: InputDecoration(labelText: 'Country'),
               onChanged: (val) => _country = val,
               controller: TextEditingController(text: _country),
             ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _loadPreferences,
-              child: Text("Save Preferences"),
+            SizedBox(height: 30),
+            Center(
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.save),
+                label: Text("Save Preferences"),
+                onPressed:
+                    _selectedInterests.isEmpty
+                        ? null // Disable the button if no interests are selected
+                        : _savePreferences,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      _selectedInterests.isEmpty
+                          ? Colors
+                              .grey // Grey out the button when disabled
+                          : Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                ),
+              ),
             ),
           ],
         ),
