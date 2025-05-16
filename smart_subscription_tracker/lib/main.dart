@@ -15,26 +15,34 @@ import 'utils/constants.dart' as constants;
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // <-- Move this to the top!
+
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     print("FlutterError: ${details.exceptionAsString()}");
     print("Stack trace: ${details.stack}");
   };
 
-  runZonedGuarded(() {
-     runApp(
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  runZonedGuarded(
+    () {
+      runApp(
         ChangeNotifierProvider(
           create: (_) => RefreshNotifier(),
           child: MyApp(),
         ),
       );
-
-  }, (error, stackTrace) {
-    print("Uncaught error: $error");
-    print("Stack trace: $stackTrace");
-  });
+    },
+    (error, stackTrace) {
+      print("Uncaught error: $error");
+      print("Stack trace: $stackTrace");
+    },
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -48,7 +56,9 @@ class MyApp extends StatelessWidget {
         } else if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         } else {
-          return SubscriptionTrackerApp(preferencesCompleted: snapshot.data as bool);
+          return SubscriptionTrackerApp(
+            preferencesCompleted: snapshot.data as bool,
+          );
         }
       },
     );
@@ -120,7 +130,7 @@ class SubscriptionTrackerApp extends StatelessWidget {
                   ? UserPreferencesScreen() // Show UserPreferencesScreen in debug mode
                   : (preferencesCompleted
                       ? HomeScreen() // Show HomeScreen if preferences are completed
-                      : UserPreferencesScreen()))), 
+                      : UserPreferencesScreen()))),
       routes: {
         '/home': (context) => HomeScreen(),
         '/auth': (context) => local_auth.AuthScreen(),
@@ -129,14 +139,15 @@ class SubscriptionTrackerApp extends StatelessWidget {
         '/account': (context) => AccountScreen(),
         '/preferences': (context) => UserPreferencesScreen(),
         '/ai-suggestions': (context) => AISuggestionsScreen(),
-        '/suggestions': (context) => SuggestionsScreenIntro(
-          onSubscriptionAdded: () {
-            // Handle the subscription added logic here
-            // For example, you can navigate to the home screen or show a message
-            Navigator.pushReplacementNamed(context, '/home');
-            print('Subscription added');
-          },
-        ),
+        '/suggestions':
+            (context) => SuggestionsScreenIntro(
+              onSubscriptionAdded: () {
+                // Handle the subscription added logic here
+                // For example, you can navigate to the home screen or show a message
+                Navigator.pushReplacementNamed(context, '/home');
+                print('Subscription added');
+              },
+            ),
         '/import': (context) => ImportSubscriptionsScreen(),
       },
     );

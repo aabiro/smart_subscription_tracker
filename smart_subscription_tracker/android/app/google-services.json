@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "291465152511",
+    "project_id": "smart-subscription-tracker-app",
+    "storage_bucket": "smart-subscription-tracker-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:291465152511:android:96c3bb11c1e5006f0549ca",
+        "android_client_info": {
+          "package_name": "com.example.smart_subscription_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZPaVbfXhDf7qvYALiZWUYC2OUh3gSrzk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

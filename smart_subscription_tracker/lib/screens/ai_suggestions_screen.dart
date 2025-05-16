@@ -455,6 +455,18 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 40,
+                    getTitlesWidget: (value, meta) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 4.0),
+                        child: Text(
+                          _formatNumber(value),
+                          style: TextStyle(
+                            fontSize: 12, // Smaller font to prevent overflow
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      );
+                    },
                     interval:
                         ((monthlyTotal > yearlyMonthlyAvg
                                     ? monthlyTotal
@@ -704,5 +716,15 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
         ),
       ),
     );
+  }
+}
+
+String _formatNumber(num value) {
+  if (value >= 1000000) {
+    return '${(value / 1000000).toStringAsFixed(1)}M';
+  } else if (value >= 1000) {
+    return '${(value / 1000).toStringAsFixed(1)}K';
+  } else {
+    return value.toStringAsFixed(0);
   }
 }

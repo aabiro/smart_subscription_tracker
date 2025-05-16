@@ -32,6 +32,70 @@ class SuggestionsScreenIntro extends StatefulWidget {
 }
 
 class _SuggestionsScreenIntroState extends State<SuggestionsScreenIntro> {
+  late Future<Map<String, dynamic>> _futureSuggestions;
+
+  @override
+  void initState() {
+    super.initState();
+    _futureSuggestions = _fetchSuggestionsWithProfile();
+  }
+
+  Future<Map<String, dynamic>> _fetchSuggestionsWithProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception("User not logged in.");
+    }
+
+    // Fetch user profile from Supabase
+    final profileResponse =
+        await Supabase.instance.client
+            .from('user_profiles')
+            .select('interests, budget, country')
+            .eq('id', user.id)
+            .maybeSingle();
+
+    if (profileResponse == null) {
+      throw Exception("User profile not found.");
+    }
+
+    final interests = profileResponse['interests'] ?? ['general'];
+    final budget = profileResponse['budget'] ?? 50;
+    final country = profileResponse['country'] ?? 'US';
+
+    // Now call the Edge Function with all required fields
+    return await ApiHelper.fetchData(
+      url:
+          'https://pjwaiolqaegmcgjvyxdh.functions.supabase.co/suggest_subscriptions',
+      headers: {'Content-Type': 'application/json'},
+      body: {
+        'user_id': user.id,
+        'interests': interests,
+        'budget': budget,
+        'country': country,
+      },
+      mockData: {
+        'suggestions': [
+          {
+            'id': Uuid().v4(),
+            'name': 'Mock Service 1 (Debug)',
+            'description': 'This is a mock description for Service 1.',
+            'price': 9.99,
+            'billing_cycle': 'Monthly',
+            'created_at': DateTime.now().toIso8601String(),
+          },
+          {
+            'id': Uuid().v4(),
+            'name': 'Mock Service 2 (Debug)',
+            'description': 'This is a mock description for Service 2.',
+            'price': 19.99,
+            'billing_cycle': 'Yearly',
+            'created_at': DateTime.now().toIso8601String(),
+          },
+        ],
+      },
+    );
+  }
+
   // Method to show suggestion details in a dialog
   void _showSuggestionDetails(
     BuildContext context,
@@ -211,42 +275,7 @@ class _SuggestionsScreenIntroState extends State<SuggestionsScreenIntro> {
           children: [
             Expanded(
               child: FutureBuilder<Map<String, dynamic>>(
-                // Ensure ApiHelper.fetchData returns this type
-                future: ApiHelper.fetchData(
-                  url:
-                      'https://pjwaiolqaegmcgjvyxdh.functions.supabase.co/ai-suggestions', // Ensure this is your correct function URL
-                  headers: {'Content-Type': 'application/json'},
-                  // Provide user_id in the body if your Edge Function expects it
-                  body: {
-                    'user_id':
-                        Supabase.instance.client.auth.currentUser?.id ?? '',
-                  },
-                  mockData: {
-                    // This mockData will be used if kDebugMode and fetchData fails or is bypassed
-                    'suggestions': [
-                      {
-                        'id': Uuid().v4(), // Add mock ID
-                        'name': 'Mock Service 1 (Debug)',
-                        'description':
-                            'This is a mock description for Service 1.',
-                        'price': 9.99,
-                        'billing_cycle': 'Monthly', // Ensure correct casing
-                        'created_at':
-                            DateTime.now()
-                                .toIso8601String(), // Add mock createdAt
-                      },
-                      {
-                        'id': Uuid().v4(),
-                        'name': 'Mock Service 2 (Debug)',
-                        'description':
-                            'This is a mock description for Service 2.',
-                        'price': 19.99,
-                        'billing_cycle': 'Yearly', // Ensure correct casing
-                        'created_at': DateTime.now().toIso8601String(),
-                      },
-                    ],
-                  },
-                ),
+                future: _futureSuggestions,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
@@ -270,9 +299,6 @@ class _SuggestionsScreenIntroState extends State<SuggestionsScreenIntro> {
                         if (kDebugMode)
                           ElevatedButton(
                             onPressed: () {
-                              // This button is a bit out of place if suggestions fail.
-                              // Consider a "Retry" button or specific debug actions.
-                              // For now, it navigates to home.
                               Navigator.pushReplacementNamed(context, '/home');
                             },
                             child: Text("Go Home (Debug)"),
@@ -288,8 +314,7 @@ class _SuggestionsScreenIntroState extends State<SuggestionsScreenIntro> {
                       ),
                     );
                   } else {
-                    final data = snapshot.data!; // Already checked for null
-                    // Ensure 'suggestions' key exists and is a list
+                    final data = snapshot.data!;
                     final suggestionsList = data['suggestions'];
                     if (suggestionsList == null || suggestionsList is! List) {
                       return Center(
@@ -318,7 +343,6 @@ class _SuggestionsScreenIntroState extends State<SuggestionsScreenIntro> {
                               suggestion['description'] ?? 'No description',
                             ),
                             onTap: () {
-                              // Added onTap to show details
                               _showSuggestionDetails(context, suggestion);
                             },
                             trailing: Row(
@@ -328,17 +352,10 @@ class _SuggestionsScreenIntroState extends State<SuggestionsScreenIntro> {
                                   "\$${(suggestion['price'] as num? ?? 0.0).toStringAsFixed(2)}",
                                 ),
                                 IconButton(
-                                  icon: Icon(
-                                    Icons.add_circle_outline,
-                                  ), // Changed icon
-                                  color:
-                                      Theme.of(
-                                        context,
-                                      ).primaryColor, // Use theme color
+                                  icon: Icon(Icons.add_circle_outline),
+                                  color: Theme.of(context).primaryColor,
                                   tooltip: 'Add to My Subscriptions',
                                   onPressed: () async {
-                                    // The existing logic for adding (mock or real)
-                                    // has been extracted to _handleAddSubscriptionAction
                                     _handleAddSubscriptionAction(
                                       context,
                                       suggestion,
@@ -357,10 +374,7 @@ class _SuggestionsScreenIntroState extends State<SuggestionsScreenIntro> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.pushReplacementNamed(
-                  context,
-                  '/home',
-                ); // Navigate to the dashboard
+                Navigator.pushReplacementNamed(context, '/home');
                 print("Navigated to the dashboard.");
               },
               child: Text("Done / Skip"),

@@ -13,11 +13,11 @@ class ApiHelper {
     bool requiresAuth = true, // Add a flag to indicate if auth is needed
   }) async {
     // In debug mode, if mockData is provided, return it.
-    if (kDebugMode && mockData != null) {
-      print("ApiHelper (Debug): Returning mock data for $url");
-      // Ensure mockData is returned as a Future<Map<String, dynamic>>
-      return Future.value(mockData);
-    }
+    // if (kDebugMode && mockData != null) {
+    //   print("ApiHelper (Debug): Returning mock data for $url");
+    //   // Ensure mockData is returned as a Future<Map<String, dynamic>>
+    //   return Future.value(mockData);
+    // }
 
     // Prepare headers
     // Create a new map to avoid modifying the original headers map if passed in.
@@ -149,36 +149,36 @@ class ApiHelper {
     }
   }
 
-//   static Future<List<dynamic>> fetchData({
-//     required String url,
-//     required Map<String, String> headers,
-//     Map<String, dynamic>? body,
-//   }) async {
-//     try {
-//       final response = await http.post(
-//         Uri.parse(url),
-//         headers: headers,
-//         body: jsonEncode(body),
-//       );
+  //   static Future<List<dynamic>> fetchData({
+  //     required String url,
+  //     required Map<String, String> headers,
+  //     Map<String, dynamic>? body,
+  //   }) async {
+  //     try {
+  //       final response = await http.post(
+  //         Uri.parse(url),
+  //         headers: headers,
+  //         body: jsonEncode(body),
+  //       );
 
-//       if (response.statusCode == 200) {
-//         final decodedBody = jsonDecode(response.body);
+  //       if (response.statusCode == 200) {
+  //         final decodedBody = jsonDecode(response.body);
 
-//         // Ensure the response is a List<dynamic>
-//         if (decodedBody is List<dynamic>) {
-//           return decodedBody;
-//         } else {
-//           throw Exception(
-//             "API returned data in an unexpected format. Expected a JSON array.",
-//           );
-//         }
-//       } else {
-//         throw Exception(
-//           "Failed to fetch data: ${response.statusCode} - ${response.reasonPhrase}. Server error: ${response.body}",
-//         );
-//       }
-//     } catch (e) {
-//       throw Exception("Error fetching data: $e");
-//     }
-//   }
+  //         // Ensure the response is a List<dynamic>
+  //         if (decodedBody is List<dynamic>) {
+  //           return decodedBody;
+  //         } else {
+  //           throw Exception(
+  //             "API returned data in an unexpected format. Expected a JSON array.",
+  //           );
+  //         }
+  //       } else {
+  //         throw Exception(
+  //           "Failed to fetch data: ${response.statusCode} - ${response.reasonPhrase}. Server error: ${response.body}",
+  //         );
+  //       }
+  //     } catch (e) {
+  //       throw Exception("Error fetching data: $e");
+  //     }
+  //   }
 }
