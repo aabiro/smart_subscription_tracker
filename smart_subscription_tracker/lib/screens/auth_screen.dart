@@ -39,15 +39,23 @@ class _AuthScreenState extends State<AuthScreen> {
       print("Sign in successful for user: ${response.user?.email}");
       if (mounted) {
         if (response.user != null) {
-          // Check if preferences are completed
-          final prefs = await SharedPreferences.getInstance();
-          final preferencesCompleted = prefs.getBool('preferencesCompleted') ?? false;
+          final userId = response.user!.id;
+          final profile =
+              await Supabase.instance.client
+                  .from('user_profiles')
+                  .select('preferences_completed')
+                  .eq('id', userId)
+                  .maybeSingle();
+
+          print('Fetched profile: $profile');
+
+          final preferencesCompleted =
+              profile?['preferences_completed'] == true;
+          print('preferencesCompleted: $preferencesCompleted');
 
           if (preferencesCompleted) {
-            // Navigate to the main app screen
             Navigator.pushReplacementNamed(context, '/');
           } else {
-            // Navigate to the UserPreferencesScreen
             Navigator.pushReplacementNamed(context, '/preferences');
           }
         } else {
@@ -106,7 +114,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (mounted) {
         if (response.user != null) {
-           // Set preferencesCompleted to false for new users
+          // Set preferencesCompleted to false for new users
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('preferencesCompleted', false);
           // User object exists. Check if email confirmation is required by your Supabase settings.

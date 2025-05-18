@@ -1,48 +1,99 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import OpenAI from "https://deno.land/x/openai@v4.24.0/mod.ts";
+import OpenAI from "https://deno.land/x/openai@v4.26.0/mod.ts";
 
-const openai = new OpenAI({ apiKey: Deno.env.get("OPENAI_API_KEY")! });
+// Initialize OpenAI client (replace with your actual API key or use env variable)
+const openai = new OpenAI({
+  apiKey: Deno.env.get("OPENAI_API_KEY") ?? "",
+});
 
-serve(async (req) => {
-  try {
-    const { emailSnippets, user_id } = await req.json();
+// Fetches Gmail messages using the user's OAuth token
+async function fetchGmailSubscriptions(oauth_token: string): Promise<any[]> {
+  // Fetch fewer messages for speed
+  const listRes = await fetch(
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=5&q=subscription OR receipt OR invoice",
+    {
+      headers: {
+        Authorization: `Bearer ${oauth_token}`,
+        Accept: "application/json",
+      },
+    }
+  );
 
-    if (!Array.isArray(emailSnippets)) {
-      return new Response(JSON.stringify({ error: "Missing email snippets" }), {
-        status: 400,
+  if (!listRes.ok) {
+    throw new Error(`Failed to fetch Gmail messages: ${await listRes.text()}`);
+  }
+
+  const listData = await listRes.json();
+  const messages = listData.messages || [];
+
+  // Fetch message details in parallel
+  const messageDetails = await Promise.all(
+    messages.map((msg: { id: string }) =>
+      fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=subject`,
+        {
+          headers: {
+            Authorization: `Bearer ${oauth_token}`,
+            Accept: "application/json",
+          },
+        }
+      ).then((res) => (res.ok ? res.json() : null))
+    )
+  );
+
+  const subscriptions: any[] = [];
+  for (const msgData of messageDetails) {
+    if (!msgData) continue;
+    const subjectHeader = (msgData.payload?.headers || []).find(
+      (h: any) => h.name.toLowerCase() === "subject"
+    );
+    const subject = subjectHeader?.value || "";
+    if (/subscription|receipt|invoice/i.test(subject)) {
+      subscriptions.push({
+        id: msgData.id,
+        name: subject,
+        price: 0,
+        billingCycle: "Unknown",
+        nextPaymentDate: null,
+        isShared: false,
       });
     }
+  }
+  return subscriptions;
+}
 
-    const prompt = `
-You are a smart assistant that extracts subscription details from email text.
-For each email snippet, return a JSON object with:
-- name: name of the service
-- price: number (USD)
-- billing_cycle: 'monthly' | 'yearly' | 'weekly' | 'one-time'
-- description: a short summary
-
-Here are the email snippets:
-${emailSnippets.map((text, i) => `Email ${i + 1}: ${text}`).join("\n\n")}
-
-Return a JSON array of subscription objects.
-`;
-
-    const chatResponse = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
+serve(async (req) => {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
     });
+  }
 
-    const parsed = JSON.parse(chatResponse.choices[0].message.content || "[]");
-
-    return new Response(JSON.stringify({ suggestions: parsed }), {
-      headers: { "Content-Type": "application/json" },
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
     });
-  } catch (e) {
-    console.error("AI Suggestion Error:", e);
+  }
+
+  const { oauth_token } = body;
+
+  if (!oauth_token) {
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500 }
+      JSON.stringify({ error: "Missing required field: oauth_token" }),
+      { status: 400 }
     );
+  }
+
+  try {
+    const subscriptions = await fetchGmailSubscriptions(oauth_token);
+    return new Response(JSON.stringify(subscriptions), { status: 200 });
+  } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+    });
   }
 });

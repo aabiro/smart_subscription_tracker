@@ -12,7 +12,12 @@
           "package_name": "com.example.smart_subscription_tracker"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "291465152511-nn51cjbn3lsab26687tosgekn5gfinhg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBZPaVbfXhDf7qvYALiZWUYC2OUh3gSrzk"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "291465152511-nn51cjbn3lsab26687tosgekn5gfinhg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "291465152511-6m5ujhnuuiqq7a3bhl0kgdivc5eq2g6a.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.smartSubscriptionTracker"
+              }
+            }
+          ]
         }
       }
     }

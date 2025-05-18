@@ -24,114 +24,75 @@ class ImportSubscriptionsScreen extends StatefulWidget {
 
 class _ImportSubscriptionsScreenState extends State<ImportSubscriptionsScreen> {
   bool _isImporting = false;
-
-  final _googleSignIn = GoogleSignIn(
-    scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
-  );
-
+  bool _isLoading = false;
   List<Map<String, dynamic>> parsedSubs = [];
   List<bool> selected = [];
-  bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    if (kDebugMode) {
-      _fetchMockSubscriptions(); // Use mock data in debug mode
-    } else {
-      _fetchSubscriptionsFromGmail(); // Fetch real data in production
+  Future<String?> getGmailAccessToken() async {
+    try {
+      print('Starting Google sign-in...');
+      final GoogleSignInAccount? googleUser =
+          await GoogleSignIn(
+            scopes: ['email', 'https://www.googleapis.com/auth/gmail.readonly'],
+          ).signIn();
+
+      if (googleUser == null) {
+        print('Google sign-in cancelled by user.');
+        return null;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      print('Google sign-in successful, got access token.');
+      return googleAuth.accessToken;
+    } catch (e) {
+      print('Google sign-in error: $e');
+      return null;
     }
   }
 
-  void _fetchMockSubscriptions() {
-    setState(() {
-      parsedSubs = [
-        {
-          'id': '1',
-          'name': 'Netflix',
-          'price': 15.99,
-          'billingCycle': 'Monthly',
-          'nextPaymentDate': DateTime.now().add(Duration(days: 30)).toIso8601String(),
-          'isShared': false,
-        },
-        {
-          'id': '2',
-          'name': 'Spotify',
-          'price': 9.99,
-          'billingCycle': 'Monthly',
-          'nextPaymentDate': DateTime.now().add(Duration(days: 30)).toIso8601String(),
-          'isShared': false,
-        },
-      ];
-      selected = List.filled(parsedSubs.length, true);
-    });
-  }
+  Future<void> _fetchFromGmailEdgeFunction() async {
+    setState(() => _isLoading = true);
 
-  Future<void> _fetchSubscriptionsFromGmail() async {
-    setState(() {
-      _isLoading = true;
-    });
+    print('Fetching Gmail OAuth token...');
+    final oauthToken = await getGmailAccessToken();
+    print('OAuth token: $oauthToken');
+    if (oauthToken == null) {
+      print('No OAuth token, aborting.');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Google sign-in failed.")));
+      setState(() => _isLoading = false);
+      return;
+    }
 
     try {
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
-        throw Exception("Google Sign-In canceled by user.");
-      }
-
-      final authHeaders = await account.authHeaders;
-      final client = GoogleAuthClient(authHeaders);
-
-      final gmailApi = gmail.GmailApi(client);
-      final messages = await gmailApi.users.messages.list(
-        'me',
-        q: "receipt OR subscription",
+      print('Calling Supabase Edge Function import_gmail...');
+      final response = await Supabase.instance.client.functions.invoke(
+        'import_gmail',
+        body: {'oauth_token': oauthToken},
       );
-
-      final List<Map<String, dynamic>> subscriptions = [];
-      for (var msg in messages.messages ?? []) {
-        final fullMessage = await gmailApi.users.messages.get('me', msg.id!);
-        final snippet = fullMessage.snippet ?? '';
-
-        // Parse the snippet to extract subscription details
-        final parsedSubscription = _parseSubscriptionFromSnippet(snippet);
-        if (parsedSubscription != null) {
-          subscriptions.add(parsedSubscription);
-        }
+      print('Edge Function response: ${response.data}');
+      final data = response.data;
+      if (data != null && data is List) {
+        setState(() {
+          parsedSubs = List<Map<String, dynamic>>.from(data);
+          selected = List.filled(parsedSubs.length, true);
+        });
+      } else {
+        print('No subscriptions found in response.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No subscriptions found from Gmail.")),
+        );
       }
-
-      setState(() {
-        parsedSubs = subscriptions;
-        selected = List.filled(parsedSubs.length, true);
-      });
-
-      print("ImportSubscriptionsScreen: Fetched subscriptions: $parsedSubs");
-    } catch (e) {
-      print("Error fetching subscriptions from Gmail: $e");
+    } catch (e, st) {
+      print('Error calling Edge Function: $e\n$st');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to fetch subscriptions: $e")),
+        SnackBar(content: Text('Error calling Edge Function: $e')),
       );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
-  }
 
-  Map<String, dynamic>? _parseSubscriptionFromSnippet(String snippet) {
-    // Placeholder parsing logic
-    // Replace this with actual logic to extract subscription details
-    if (snippet.contains("Supabase Pro")) {
-      return {
-        'id': DateTime.now().toIso8601String(), // Generate a unique ID
-        'name': 'Supabase Pro',
-        'price': 15.99,
-        'billingCycle': 'Monthly',
-        'nextPaymentDate':
-            DateTime.now().add(Duration(days: 30)).toIso8601String(),
-        'isShared': false,
-      };
-    }
-    return null;
+    setState(() => _isLoading = false);
   }
 
   void _importSelected() async {
@@ -199,35 +160,47 @@ class _ImportSubscriptionsScreenState extends State<ImportSubscriptionsScreen> {
     _onImportComplete(context);
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Import from Gmail')),
-      body:
-          _isLoading
-              ? Center(child: CircularProgressIndicator())
-              : parsedSubs.isEmpty
-              ? Center(child: Text("No subscriptions found."))
-              : ListView.builder(
-                itemCount: parsedSubs.length,
-                itemBuilder: (context, index) {
-                  final sub = parsedSubs[index];
-                  return CheckboxListTile(
-                    value: selected[index],
-                    onChanged: (val) {
-                      setState(() {
-                        selected[index] = val!;
-                      });
-                    },
-                    title: Text(sub['name']?.toString() ?? 'Unnamed'),
-                    subtitle: Text(
-                      '\$${(sub['price'] ?? 0).toString()} • ${sub['billingCycle']?.toString() ?? 'Monthly'}',
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton.icon(
+              icon: Icon(Icons.email),
+              label: Text("Fetch from Gmail"),
+              onPressed: _isLoading ? null : _fetchFromGmailEdgeFunction,
+            ),
+          ),
+          Expanded(
+            child:
+                _isLoading
+                    ? Center(child: CircularProgressIndicator())
+                    : parsedSubs.isEmpty
+                    ? Center(child: Text("No subscriptions found."))
+                    : ListView.builder(
+                      itemCount: parsedSubs.length,
+                      itemBuilder: (context, index) {
+                        final sub = parsedSubs[index];
+                        return CheckboxListTile(
+                          value: selected[index],
+                          onChanged: (val) {
+                            setState(() {
+                              selected[index] = val!;
+                            });
+                          },
+                          title: Text(sub['name']?.toString() ?? 'Unnamed'),
+                          subtitle: Text(
+                            '\$${(sub['price'] ?? 0).toString()} • ${sub['billingCycle']?.toString() ?? 'Monthly'}',
+                          ),
+                        );
+                      },
                     ),
-
-                  );
-                },
-              ),
+          ),
+        ],
+      ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
@@ -245,7 +218,6 @@ class _ImportSubscriptionsScreenState extends State<ImportSubscriptionsScreen> {
                   : Text('Import Selected'),
         ),
       ),
-
     );
   }
 }

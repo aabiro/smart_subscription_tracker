@@ -9,7 +9,6 @@ import 'screens/user_preferences_screen.dart';
 import 'screens/ai_suggestions_screen.dart';
 import 'screens/account_screen.dart';
 import 'notifiers/shared_refresh_notifier.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/auth_screen.dart' as local_auth;
 import 'utils/constants.dart' as constants;
 import 'package:flutter/foundation.dart';
@@ -28,6 +27,11 @@ Future<void> main() async {
   };
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  await Supabase.initialize(
+    url: '${constants.supabaseUrl}',
+    anonKey: '${constants.anonKey}',
+  );
 
   runZonedGuarded(
     () {
@@ -48,44 +52,89 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: initializeApp(),
+    return FutureBuilder<bool>(
+      future: fetchPreferencesCompleted(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return CircularProgressIndicator();
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else {
-          return SubscriptionTrackerApp(
-            preferencesCompleted: snapshot.data as bool,
-          );
-        }
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            primarySwatch: Colors.blue,
+            scaffoldBackgroundColor: Colors.grey[100],
+            textTheme: TextTheme(
+              titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              bodyMedium: TextStyle(fontSize: 16),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(
+                vertical: 10,
+                horizontal: 12,
+              ),
+            ),
+            chipTheme: ChipThemeData(
+              backgroundColor: Colors.grey[200]!,
+              selectedColor: Colors.blue[100],
+              labelStyle: TextStyle(fontSize: 14),
+            ),
+          ),
+          home: _buildHome(snapshot),
+          routes: {
+            '/home': (context) => HomeScreen(),
+            '/auth': (context) => local_auth.AuthScreen(),
+            '/add-edit': (context) => AddEditSubscriptionScreen(),
+            '/dashboard': (context) => DashboardScreen(),
+            '/account': (context) => AccountScreen(),
+            '/preferences': (context) => UserPreferencesScreen(),
+            '/ai-suggestions': (context) => AISuggestionsScreen(),
+            '/suggestions':
+                (context) => SuggestionsScreenIntro(
+                  onSubscriptionAdded: () {
+                    Navigator.pushReplacementNamed(context, '/home');
+                    print('Subscription added');
+                  },
+                ),
+            '/import': (context) => ImportSubscriptionsScreen(),
+          },
+        );
       },
     );
   }
 
-  Future<bool> initializeApp() async {
-    WidgetsFlutterBinding.ensureInitialized();
-
-    print("Attempting to initialize Supabase with:");
-    print("URL: '${constants.supabaseUrl}'");
-    print(
-      "Anon Key: '${constants.anonKey}'",
-    ); // Good to check this isn't empty/null too
-
-    try {
-      await Supabase.initialize(
-        url: constants.supabaseUrl,
-        anonKey: constants.anonKey,
-      );
-      print("Supabase.initialize call completed successfully.");
-    } catch (e) {
-      print("Error during Supabase.initialize: $e");
-      // If host lookup fails here, this catch block should grab it.
+  Widget _buildHome(AsyncSnapshot<bool> snapshot) {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (snapshot.hasError) {
+      return Center(child: Text('Error: ${snapshot.error}'));
+    } else {
+      final preferencesCompleted = snapshot.data ?? false;
+      return (session == null
+          ? local_auth.AuthScreen()
+          : (kDebugMode
+              ? UserPreferencesScreen()
+              : (preferencesCompleted
+                  ? HomeScreen()
+                  : UserPreferencesScreen())));
     }
+  }
 
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('preferencesCompleted') ?? false;
+  Future<bool> fetchPreferencesCompleted() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) return false;
+    final userId = session.user.id;
+    final profile =
+        await Supabase.instance.client
+            .from('user_profiles')
+            .select('preferences_completed')
+            .eq('id', userId)
+            .maybeSingle();
+    return profile?['preferences_completed'] == true;
   }
 }
 

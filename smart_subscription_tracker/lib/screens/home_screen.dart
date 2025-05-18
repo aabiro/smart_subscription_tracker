@@ -40,7 +40,8 @@ class _HomeScreenState extends State<HomeScreen> {
     print("Building HomeScreen with currentIndex: $_currentIndex");
     return Scaffold(
       appBar: AppBar(
-        title: Text('Your Subscriptions'),
+        title: Text('Smart Sub Tracker'),
+        centerTitle: true,
         actions: [
           PopupMenuButton<String>(
             icon: CircleAvatar(

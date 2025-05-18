@@ -291,6 +291,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
         // Optionally trigger a full profile and suggestions reload if adding a sub changes context for AI
         // _initializeProfileAndSuggestions();
       });
+      Provider.of<RefreshNotifier>(context, listen: false).triggerRefresh();
     } on PostgrestException catch (e) {
       if (!currentContext.mounted) return;
       scaffoldMessenger.showSnackBar(

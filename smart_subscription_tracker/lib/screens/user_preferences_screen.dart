@@ -12,13 +12,7 @@ class UserPreferencesScreen extends StatefulWidget {
 
 class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
   final _budgetController = TextEditingController(text: '50');
-  final List<String> _availableInterests = [
-    'Entertainment',
-    'Fitness',
-    'Productivity',
-    'Learning',
-    'Finance',
-  ];
+  final List<String> _availableInterests = List.from(constants.kAllInterests);
   List<String> _selectedInterests = [];
   String _country = 'US';
   final supabase = Supabase.instance.client;
@@ -53,6 +47,14 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
       print("Debug mode: preferencesCompleted set to false");
     } else {
       await prefs.setBool('preferencesCompleted', true);
+    }
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      await Supabase.instance.client
+          .from('user_profiles')
+          .update({'preferences_completed': true})
+          .eq('id', user.id);
     }
 
     // Navigate to the main app screen

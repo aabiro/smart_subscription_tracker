@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/constants.dart' as constants;
 
 class AccountScreen extends StatefulWidget {
   @override
@@ -9,43 +10,7 @@ class AccountScreen extends StatefulWidget {
 class _AccountScreenState extends State<AccountScreen> {
   final supabase = Supabase.instance.client;
   // Consider making this list configurable or fetched if it can change
-  final List<String> _availableInterests = [
-    'Technology',
-    'Gaming',
-    'Movies',
-    'Music',
-    'Fitness',
-    'Health & Wellness',
-    'Yoga',
-    'Running',
-    'Finance',
-    'Investing',
-    'Cryptocurrency',
-    'Entertainment',
-    'Streaming Services',
-    'Books',
-    'Podcasts',
-    'Travel',
-    'Adventure',
-    'Culture',
-    'Food & Cooking',
-    'Baking',
-    'Restaurants',
-    'Fashion',
-    'Beauty',
-    'Sports',
-    'Football',
-    'Basketball',
-    'Education',
-    'Learning New Skills',
-    'Languages',
-    'Productivity',
-    'Software Tools',
-    'Home & Garden',
-    'DIY',
-    'Pets',
-    'Animals',
-  ];
+  final List<String> _availableInterests = List.from(constants.kAllInterests);
   List<String> _selectedInterests = [];
   bool _isLoading = true;
   String? _errorMessage;
